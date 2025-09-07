@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure all input fields and textareas have dark black text */
+input, textarea, select {
+  color: #111827 !important; /* text-gray-900 equivalent */
+}
+
+/* Ensure placeholder text is also dark */
+input::placeholder, textarea::placeholder {
+  color: #6b7280 !important; /* text-gray-500 equivalent */
+}
+
+/* Ensure focus states maintain dark text */
+input:focus, textarea:focus, select:focus {
+  color: #111827 !important; /* text-gray-900 equivalent */
+}

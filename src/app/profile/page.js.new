@@ -1,0 +1,762 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaBriefcase, FaFilePdf, FaUpload, FaCheck, FaSpinner, FaArrowLeft, FaUserEdit, FaFileAlt, FaArrowRight, FaInfoCircle } from 'react-icons/fa';
+import { FaLocationDot, FaGear, FaCircleCheck } from 'react-icons/fa6';
+import Navbar from '@/components/Navbar';
+import Link from 'next/link';
+
+export default function ProfilePage() {
+  const [activeTab, setActiveTab] = useState('profile');
+  const [profile, setProfile] = useState({
+    fullName: '',
+    age: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: ''
+    },
+    phone: '',
+    headline: '',
+    bio: '',
+    skills: '',
+    parsedResumeText: '',
+    profilePicture: '',
+    resumePDF: ''
+  });
+  
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeMessage, setResumeMessage] = useState('');
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const fileInputRef = useRef(null);
+  const replaceResumeInputRef = useRef(null);
+
+  // Fetch profile data on component mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProfile(prev => ({
+            ...prev,
+            ...data,
+            address: data.address || { street: '', city: '', state: '', zipCode: '', country: '' },
+            skills: data.skills ? data.skills.join(', ') : ''
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setProfile(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setProfile(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileMessage('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...profile,
+          skills: profile.skills.split(',').map(skill => skill.trim()).filter(Boolean)
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setProfileMessage('Profile updated successfully!');
+      } else {
+        setProfileMessage(data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setProfileMessage('An error occurred while updating your profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setResumeLoading(true);
+    setResumeMessage('');
+    
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/upload/resume', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResumeMessage('Resume uploaded successfully!');
+        setProfile(prev => ({
+          ...prev,
+          resumePDF: data.filePath,
+          parsedResumeText: data.parsedText || ''
+        }));
+      } else {
+        setResumeMessage(data.message || 'Failed to upload resume');
+      }
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      setResumeMessage('An error occurred while uploading your resume');
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+
+  const handleAnalyzeResume = async () => {
+    if (!profile.parsedResumeText) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/analyze/resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: profile.parsedResumeText
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setAnalysisResult(data);
+      } else {
+        setResumeMessage(data.message || 'Failed to analyze resume');
+      }
+    } catch (error) {
+      console.error('Error analyzing resume:', error);
+      setResumeMessage('An error occurred while analyzing your resume');
+    }
+  };
+
+  const handleReplaceResume = () => {
+    if (replaceResumeInputRef.current) {
+      replaceResumeInputRef.current.click();
+    }
+  };
+
+  const handleReplaceResumeSelected = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleResumeUpload(e);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8">
+        <Link href="/developer-dashboard" className="inline-flex items-center text-blue-400 hover:text-blue-300 mb-6 transition-colors">
+          <FaArrowLeft className="mr-2" /> Back to Dashboard
+        </Link>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left Column - Profile Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-xl shadow-2xl p-6 border border-gray-700">
+              <div className="flex flex-col items-center">
+                <div className="relative mb-4">
+                  <div className="w-32 h-32 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border-2 border-blue-500">
+                    {profile.profilePicture ? (
+                      <img 
+                        src={profile.profilePicture} 
+                        alt={profile.fullName || 'Profile'} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FaUser className="w-16 h-16 text-gray-400" />
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full shadow-lg transition-colors"
+                  >
+                    <FaUpload className="w-4 h-4" />
+                  </button>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      
+                      const formData = new FormData();
+                      formData.append('profilePicture', file);
+                      
+                      try {
+                        const token = localStorage.getItem('token');
+                        const response = await fetch('/api/upload/profile-picture', {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: formData
+                        });
+                        
+                        const data = await response.json();
+                        if (response.ok) {
+                          setProfile(prev => ({
+                            ...prev,
+                            profilePicture: data.filePath
+                          }));
+                        }
+                      } catch (error) {
+                        console.error('Error uploading profile picture:', error);
+                      }
+                    }}
+                  />
+                </div>
+                
+                <h2 className="text-xl font-semibold text-white">{profile.fullName || 'Your Name'}</h2>
+                <p className="text-blue-300 text-sm">{profile.headline || 'Your Professional Title'}</p>
+                
+                <div className="w-full mt-6 space-y-4">
+                  <div className="flex items-center text-gray-300">
+                    <FaEnvelope className="mr-3 text-blue-400" />
+                    <span className="truncate">{profile.email || 'your.email@example.com'}</span>
+                  </div>
+                  
+                  {profile.phone && (
+                    <div className="flex items-center text-gray-300">
+                      <FaPhone className="mr-3 text-blue-400" />
+                      <span>{profile.phone}</span>
+                    </div>
+                  )}
+                  
+                  {profile.address?.city && profile.address?.country && (
+                    <div className="flex items-start text-gray-300">
+                      <FaMapMarkerAlt className="mr-3 mt-1 flex-shrink-0 text-blue-400" />
+                      <span>
+                        {[profile.address.city, profile.address.country].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {profile.skills && (
+                  <div className="w-full mt-6">
+                    <h3 className="text-sm font-medium text-gray-300 mb-2">Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.skills.split(',').map((skill, index) => (
+                        <span 
+                          key={index} 
+                          className="px-3 py-1 bg-blue-900 bg-opacity-50 text-blue-100 text-xs rounded-full"
+                        >
+                          {skill.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-8 pt-6 border-t border-gray-700">
+                <h3 className="text-sm font-medium text-gray-300 mb-3">Resume</h3>
+                {profile.resumePDF ? (
+                  <div className="flex items-center justify-between bg-gray-700 bg-opacity-50 rounded-lg p-3">
+                    <div className="flex items-center">
+                      <FaFilePdf className="text-red-400 mr-2" />
+                      <span className="text-sm text-gray-200 truncate">
+                        {profile.resumePDF.split('/').pop() || 'resume.pdf'}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={handleReplaceResume}
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        Replace
+                      </button>
+                      <a 
+                        href={profile.resumePDF} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        View
+                      </a>
+                    </div>
+                    <input 
+                      type="file" 
+                      accept=".pdf"
+                      ref={replaceResumeInputRef}
+                      onChange={handleReplaceResumeSelected}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors flex items-center justify-center"
+                    >
+                      <FaUpload className="mr-2" /> Upload Resume
+                    </button>
+                    <p className="text-xs text-gray-400 mt-2">PDF, 5MB max</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Right Column - Profile Form */}
+          <div className="lg:col-span-3 space-y-8">
+            <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-xl shadow-2xl p-8 border border-gray-700">
+              <h2 className="text-2xl font-semibold text-white mb-6 flex items-center">
+                <FaUserEdit className="mr-3 text-blue-400" />
+                Personal Information
+              </h2>
+              
+              <form onSubmit={handleProfileSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaUser className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="fullName"
+                        name="fullName"
+                        value={profile.fullName}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-2">
+                      Age
+                    </label>
+                    <input
+                      type="number"
+                      id="age"
+                      name="age"
+                      value={profile.age}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="25"
+                      min="18"
+                      max="100"
+                    />
+                  </div>
+
+                  {/* Headline */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="headline" className="block text-sm font-medium text-gray-300 mb-2">
+                      Professional Headline
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaBriefcase className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="headline"
+                        name="headline"
+                        value={profile.headline}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="e.g. Senior Software Engineer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bio */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-2">
+                      About Me
+                    </label>
+                    <textarea
+                      id="bio"
+                      name="bio"
+                      value={profile.bio}
+                      onChange={handleChange}
+                      rows="4"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="Tell us about yourself, your experience, and your skills..."
+                    ></textarea>
+                  </div>
+
+                  {/* Skills */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="skills" className="block text-sm font-medium text-gray-300 mb-2">
+                      Skills (comma separated)
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaGear className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="skills"
+                        name="skills"
+                        value={profile.skills}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="e.g. JavaScript, React, Node.js, Python"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mt-8 mb-4 flex items-center">
+                  <FaLocationDot className="mr-2 text-blue-400" />
+                  Contact Information
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaEnvelope className="text-gray-400" />
+                      </div>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={profile.email || ''}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="your.email@example.com"
+                        required
+                        disabled={!!profile.email}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaPhone className="text-gray-400" />
+                      </div>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={profile.phone}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="address.street" className="block text-sm font-medium text-gray-300 mb-2">
+                      Street Address
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaMapMarkerAlt className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="address.street"
+                        name="address.street"
+                        value={profile.address.street}
+                        onChange={handleChange}
+                        className="pl-10 w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                        placeholder="123 Main St"
+                      />
+                    </div>
+                  </div>
+
+                  {/* City */}
+                  <div>
+                    <label htmlFor="address.city" className="block text-sm font-medium text-gray-300 mb-2">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      id="address.city"
+                      name="address.city"
+                      value={profile.address.city}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="New York"
+                    />
+                  </div>
+
+                  {/* State/Province */}
+                  <div>
+                    <label htmlFor="address.state" className="block text-sm font-medium text-gray-300 mb-2">
+                      State/Province
+                    </label>
+                    <input
+                      type="text"
+                      id="address.state"
+                      name="address.state"
+                      value={profile.address.state}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="NY"
+                    />
+                  </div>
+
+                  {/* ZIP/Postal Code */}
+                  <div>
+                    <label htmlFor="address.zipCode" className="block text-sm font-medium text-gray-300 mb-2">
+                      ZIP/Postal Code
+                    </label>
+                    <input
+                      type="text"
+                      id="address.zipCode"
+                      name="address.zipCode"
+                      value={profile.address.zipCode}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="10001"
+                    />
+                  </div>
+
+                  {/* Country */}
+                  <div>
+                    <label htmlFor="address.country" className="block text-sm font-medium text-gray-300 mb-2">
+                      Country
+                    </label>
+                    <input
+                      type="text"
+                      id="address.country"
+                      name="address.country"
+                      value={profile.address.country}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                      placeholder="United States"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={profileLoading}
+                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-500 hover:to-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-500/20"
+                  >
+                    {profileLoading ? (
+                      <>
+                        <FaSpinner className="animate-spin inline-block mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Profile'
+                    )}
+                  </button>
+                </div>
+
+                {profileMessage && (
+                  <div className={`mt-4 p-4 rounded-lg ${
+                    profileMessage.includes('success') 
+                      ? 'bg-green-900 bg-opacity-30 text-green-300 border border-green-800' 
+                      : 'bg-red-900 bg-opacity-30 text-red-300 border border-red-800'
+                  }`}>
+                    {profileMessage}
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Resume Section */}
+            <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-xl shadow-2xl p-8 border border-gray-700">
+              <h2 className="text-2xl font-semibold text-white mb-6 flex items-center">
+                <FaFilePdf className="mr-3 text-red-400" />
+                Resume & Documents
+              </h2>
+              
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleResumeUpload({ target: { files: [resumeFile] } });
+              }} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Upload Resume (PDF)
+                  </label>
+                  <input 
+                    type="file" 
+                    accept=".pdf" 
+                    onChange={(e) => setResumeFile(e.target.files[0])} 
+                    className="w-full px-4 py-3 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-800 text-white"
+                  />
+                  <p className="text-sm text-gray-400 mt-2">
+                    Upload your resume in PDF format. The system will automatically parse the content.
+                  </p>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  disabled={resumeLoading || !resumeFile}
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-500 hover:to-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-500/20"
+                >
+                  {resumeLoading ? (
+                    <>
+                      <FaSpinner className="animate-spin inline-block mr-2" />
+                      Uploading and Parsing...
+                    </>
+                  ) : 'Upload Resume'}
+                </button>
+                
+                {resumeMessage && (
+                  <div className={`p-4 rounded-lg ${
+                    resumeMessage.includes('success') 
+                      ? 'bg-green-900 bg-opacity-30 text-green-300 border border-green-800' 
+                      : 'bg-red-900 bg-opacity-30 text-red-300 border border-red-800'
+                  }`}>
+                    {resumeMessage}
+                  </div>
+                )}
+              </form>
+              
+              {profile.parsedResumeText && (
+                <div className="mt-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-white">Parsed Resume Content</h3>
+                    <button
+                      onClick={handleAnalyzeResume}
+                      className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Analyze Resume
+                    </button>
+                  </div>
+                  <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
+                    <textarea 
+                      name="parsedResumeText" 
+                      placeholder="Your parsed resume content will appear here..." 
+                      value={profile.parsedResumeText} 
+                      onChange={handleChange} 
+                      rows={8}
+                      className="w-full px-4 py-3 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical bg-gray-800 text-white"
+                    />
+                    <div className="mt-2 text-sm text-gray-400">
+                      <FaInfoCircle className="inline-block mr-1" />
+                      You can edit this content if the automatic parsing didn't work correctly.
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {analysisResult && (
+                <div className="mt-8 bg-gray-900 rounded-lg border border-gray-700 p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Resume Analysis</h3>
+                  <div className="space-y-6">
+                    {analysisResult.skills?.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-200 mb-2">Skills Found</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResult.skills.map((skill, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-900 bg-opacity-50 text-blue-100 text-sm rounded-full">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {analysisResult.experience && (
+                      <div>
+                        <h4 className="font-medium text-gray-200 mb-2">Experience Level</h4>
+                        <p className="text-gray-300">{analysisResult.experience}</p>
+                      </div>
+                    )}
+                    
+                    {analysisResult.summary && (
+                      <div>
+                        <h4 className="font-medium text-gray-200 mb-2">Professional Summary</h4>
+                        <p className="text-gray-300">{analysisResult.summary}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
