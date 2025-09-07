@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaBriefcase, 
   FaFilePdf, FaUpload, FaCheck, FaSpinner, FaUserEdit, 
   FaLinkedin, FaGithub, FaTwitter, FaGlobe, FaGraduationCap,
-  FaCalendarAlt, FaEdit, FaTrash, FaPlus, FaLink, FaBuilding
+  FaCalendarAlt, FaEdit, FaTrash, FaPlus, FaLink, FaBuilding,
+  FaFileAlt, FaDownload
 } from 'react-icons/fa';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
@@ -129,9 +131,11 @@ export default function NewProfilePage() {
           <div className="flex flex-col md:flex-row items-start md:items-center">
             <div className="relative group mb-6 md:mb-0 md:mr-8">
               <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden">
-                <img 
+                <Image 
                   src={profile.profilePicture} 
                   alt={profile.fullName}
+                  width={128}
+                  height={128}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.target.onerror = null;

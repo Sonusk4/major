@@ -159,7 +159,7 @@ export default function DeveloperDashboardPage() {
                 </div>
               </div>
               <p className="text-gray-300 mb-6">
-                Get AI-powered insights about your resume. Discover job roles you're qualified for, 
+                Get AI-powered insights about your resume. Discover job roles you&apos;re qualified for, 
                 match percentages, and personalized recommendations to improve your career prospects.
               </p>
               <div className="space-y-3 mb-8">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { FaSpinner, FaCheck, FaExclamationTriangle, FaSync } from 'react-icons/fa';
 
 export default function ProfilePicturesDebug() {
@@ -221,9 +222,11 @@ export default function ProfilePicturesDebug() {
             ].map((file) => (
               <div key={file} className="bg-gray-700/30 p-3 rounded-md border border-gray-600">
                 <div className="aspect-square bg-gray-700/50 mb-2 overflow-hidden rounded-md">
-                  <img 
+                  <Image 
                     src={`/uploads/profile-pictures/${file}`} 
                     alt={file}
+                    width={200}
+                    height={200}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.onerror = null;
