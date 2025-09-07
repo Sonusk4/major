@@ -18,8 +18,18 @@ const getDataFromToken = (request) => {
 };
 
 export async function GET(request, { params }) {
-  await dbConnect();
   try {
+    // Connect to MongoDB
+    try {
+      await dbConnect();
+    } catch (dbError) {
+      console.error('Database connection error:', dbError);
+      return NextResponse.json(
+        { message: 'Database connection failed' },
+        { status: 500 }
+      );
+    }
+
     const userData = getDataFromToken(request);
     if (!userData) {
       return NextResponse.json({ 
@@ -70,6 +80,10 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(jsonResponse, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ message: "An error occurred during AI analysis." }, { status: 500 });
+    console.error('Error in AI analysis:', error);
+    return NextResponse.json(
+      { message: error.message || 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
