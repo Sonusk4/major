@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -14,13 +14,7 @@ export default function ApplicationsPage() {
   const params = useParams();
   const projectId = params?.projectId;
 
-  useEffect(() => {
-    if (projectId) {
-      fetchApplications();
-    }
-  }, [projectId]);
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       setError('You must be logged in to view applications.');
@@ -46,7 +40,13 @@ export default function ApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchApplications();
+    }
+  }, [projectId, fetchApplications]);
 
   const updateApplicationStatus = async (applicationId, newStatus, notes = '') => {
     setUpdatingStatus(applicationId);
@@ -165,7 +165,7 @@ export default function ApplicationsPage() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📭</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
-            <p className="text-gray-900">Developers haven't applied to this project yet.</p>
+            <p className="text-gray-900">Developers haven&apos;t applied to this project yet.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">

@@ -249,7 +249,7 @@ export default function DashboardPage() {
                  <i className="fas fa-folder-plus text-white text-3xl"></i>
                </div>
                <h3 className="text-2xl font-bold text-white mb-3">No Projects Yet</h3>
-               <p className="text-gray-400 max-w-md mx-auto mb-8">You haven't posted any projects yet. Start your journey by creating your first project and find the perfect team members.</p>
+               <p className="text-gray-400 max-w-md mx-auto mb-8">You haven&apos;t posted any projects yet. Start your journey by creating your first project and find the perfect team members.</p>
                <div className="flex flex-col sm:flex-row justify-center gap-4">
                  <Link 
                    href="/post-project" 
